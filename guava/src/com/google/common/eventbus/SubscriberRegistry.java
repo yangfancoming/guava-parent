@@ -1,16 +1,4 @@
-/*
- * Copyright (C) 2014 The Guava Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed under the License
- * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
- * or implied. See the License for the specific language governing permissions and limitations under
- * the License.
- */
+
 
 package com.google.common.eventbus;
 
@@ -48,206 +36,206 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Registry of subscribers to a single event bus.
- *
- * @author Colin Decker
  */
 final class SubscriberRegistry {
 
-  /**
-   * All registered subscribers, indexed by event type.
-   *
-   * <p>The {@link CopyOnWriteArraySet} values make it easy and relatively lightweight to get an
-   * immutable snapshot of all current subscribers to an event without any locking.
-   */
-  private final ConcurrentMap<Class<?>, CopyOnWriteArraySet<Subscriber>> subscribers =
-      Maps.newConcurrentMap();
+    /**
+     * 他的键是Class类，也就是Event的类型，值是CopyOnWriteArraySet，也就是订阅者。
+     * 这个ConcurrentMap是Guava定义的并发Map，这个后续咱们有机会再分析。
+     * All registered subscribers, indexed by event type.
+     * <p>The {@link CopyOnWriteArraySet} values make it easy and relatively lightweight to get an
+     * immutable snapshot of all current subscribers to an event without any locking.
+     */
+    private final ConcurrentMap<Class<?>, CopyOnWriteArraySet<Subscriber>> subscribers =  Maps.newConcurrentMap();
 
-  /** The event bus this registry belongs to. */
-  @Weak private final EventBus bus;
+    /** The event bus this registry belongs to. */
+    @Weak private final EventBus bus;
 
-  SubscriberRegistry(EventBus bus) {
-    this.bus = checkNotNull(bus);
-  }
-
-  /** Registers all subscriber methods on the given listener object. */
-  void register(Object listener) {
-    Multimap<Class<?>, Subscriber> listenerMethods = findAllSubscribers(listener);
-
-    for (Entry<Class<?>, Collection<Subscriber>> entry : listenerMethods.asMap().entrySet()) {
-      Class<?> eventType = entry.getKey();
-      Collection<Subscriber> eventMethodsInListener = entry.getValue();
-
-      CopyOnWriteArraySet<Subscriber> eventSubscribers = subscribers.get(eventType);
-
-      if (eventSubscribers == null) {
-        CopyOnWriteArraySet<Subscriber> newSet = new CopyOnWriteArraySet<>();
-        eventSubscribers =
-            MoreObjects.firstNonNull(subscribers.putIfAbsent(eventType, newSet), newSet);
-      }
-
-      eventSubscribers.addAll(eventMethodsInListener);
-    }
-  }
-
-  /** Unregisters all subscribers on the given listener object. */
-  void unregister(Object listener) {
-    Multimap<Class<?>, Subscriber> listenerMethods = findAllSubscribers(listener);
-
-    for (Entry<Class<?>, Collection<Subscriber>> entry : listenerMethods.asMap().entrySet()) {
-      Class<?> eventType = entry.getKey();
-      Collection<Subscriber> listenerMethodsForType = entry.getValue();
-
-      CopyOnWriteArraySet<Subscriber> currentSubscribers = subscribers.get(eventType);
-      if (currentSubscribers == null || !currentSubscribers.removeAll(listenerMethodsForType)) {
-        // if removeAll returns true, all we really know is that at least one subscriber was
-        // removed... however, barring something very strange we can assume that if at least one
-        // subscriber was removed, all subscribers on listener for that event type were... after
-        // all, the definition of subscribers on a particular class is totally static
-        throw new IllegalArgumentException(
-            "missing event subscriber for an annotated method. Is " + listener + " registered?");
-      }
-
-      // don't try to remove the set if it's empty; that can't be done safely without a lock
-      // anyway, if the set is empty it'll just be wrapping an array of length 0
-    }
-  }
-
-  @VisibleForTesting
-  Set<Subscriber> getSubscribersForTesting(Class<?> eventType) {
-    return MoreObjects.firstNonNull(subscribers.get(eventType), ImmutableSet.<Subscriber>of());
-  }
-
-  /**
-   * Gets an iterator representing an immutable snapshot of all subscribers to the given event at
-   * the time this method is called.
-   */
-  Iterator<Subscriber> getSubscribers(Object event) {
-    ImmutableSet<Class<?>> eventTypes = flattenHierarchy(event.getClass());
-
-    List<Iterator<Subscriber>> subscriberIterators =
-        Lists.newArrayListWithCapacity(eventTypes.size());
-
-    for (Class<?> eventType : eventTypes) {
-      CopyOnWriteArraySet<Subscriber> eventSubscribers = subscribers.get(eventType);
-      if (eventSubscribers != null) {
-        // eager no-copy snapshot
-        subscriberIterators.add(eventSubscribers.iterator());
-      }
+    SubscriberRegistry(EventBus bus) {
+        this.bus = checkNotNull(bus);
     }
 
-    return Iterators.concat(subscriberIterators.iterator());
-  }
-
-  /**
-   * A thread-safe cache that contains the mapping from each class to all methods in that class and
-   * all super-classes, that are annotated with {@code @Subscribe}. The cache is shared across all
-   * instances of this class; this greatly improves performance if multiple EventBus instances are
-   * created and objects of the same class are registered on all of them.
-   */
-  private static final LoadingCache<Class<?>, ImmutableList<Method>> subscriberMethodsCache =
-      CacheBuilder.newBuilder()
-          .weakKeys()
-          .build(
-              new CacheLoader<Class<?>, ImmutableList<Method>>() {
-                @Override
-                public ImmutableList<Method> load(Class<?> concreteClass) throws Exception {
-                  return getAnnotatedMethodsNotCached(concreteClass);
-                }
-              });
-
-  /**
-   * Returns all subscribers for the given listener grouped by the type of event they subscribe to.
-   */
-  private Multimap<Class<?>, Subscriber> findAllSubscribers(Object listener) {
-    Multimap<Class<?>, Subscriber> methodsInListener = HashMultimap.create();
-    Class<?> clazz = listener.getClass();
-    for (Method method : getAnnotatedMethods(clazz)) {
-      Class<?>[] parameterTypes = method.getParameterTypes();
-      Class<?> eventType = parameterTypes[0];
-      methodsInListener.put(eventType, Subscriber.create(bus, listener, method));
-    }
-    return methodsInListener;
-  }
-
-  private static ImmutableList<Method> getAnnotatedMethods(Class<?> clazz) {
-    return subscriberMethodsCache.getUnchecked(clazz);
-  }
-
-  private static ImmutableList<Method> getAnnotatedMethodsNotCached(Class<?> clazz) {
-    Set<? extends Class<?>> supertypes = TypeToken.of(clazz).getTypes().rawTypes();
-    Map<MethodIdentifier, Method> identifiers = Maps.newHashMap();
-    for (Class<?> supertype : supertypes) {
-      for (Method method : supertype.getDeclaredMethods()) {
-        if (method.isAnnotationPresent(Subscribe.class) && !method.isSynthetic()) {
-          // TODO(cgdecker): Should check for a generic parameter type and error out
-          Class<?>[] parameterTypes = method.getParameterTypes();
-          checkArgument(
-              parameterTypes.length == 1,
-              "Method %s has @Subscribe annotation but has %s parameters."
-                  + "Subscriber methods must have exactly 1 parameter.",
-              method,
-              parameterTypes.length);
-
-          MethodIdentifier ident = new MethodIdentifier(method);
-          if (!identifiers.containsKey(ident)) {
-            identifiers.put(ident, method);
-          }
+    /** Registers all subscriber methods on the given listener object. */
+    /** 主要的逻辑是：
+     获取这个类中所有用@Subscribe注解的方法，存储到Multimap中。
+     遍历Multimap，键为eventType，然后根据这个键，从缓存中获取这个事件对应的订阅者集合。
+     获取到之后，判断集合是否为空，如果为空，新建一个集合来存储。
+    */
+    void register(Object listener) {
+        //根据订阅者找到对应的<EventType,订阅者集合>
+        Multimap<Class<?>, Subscriber> listenerMethods = findAllSubscribers(listener);
+        //新的订阅者添加到集合中
+        for (Entry<Class<?>, Collection<Subscriber>> entry : listenerMethods.asMap().entrySet()) {
+            Class<?> eventType = entry.getKey();
+            Collection<Subscriber> eventMethodsInListener = entry.getValue();
+            CopyOnWriteArraySet<Subscriber> eventSubscribers = subscribers.get(eventType);
+            if (eventSubscribers == null) {
+                CopyOnWriteArraySet<Subscriber> newSet = new CopyOnWriteArraySet<>();
+                eventSubscribers = MoreObjects.firstNonNull(subscribers.putIfAbsent(eventType, newSet), newSet);
+            }
+            eventSubscribers.addAll(eventMethodsInListener);
         }
-      }
     }
-    return ImmutableList.copyOf(identifiers.values());
-  }
 
-  /** Global cache of classes to their flattened hierarchy of supertypes. */
-  private static final LoadingCache<Class<?>, ImmutableSet<Class<?>>> flattenHierarchyCache =
-      CacheBuilder.newBuilder()
-          .weakKeys()
-          .build(
-              new CacheLoader<Class<?>, ImmutableSet<Class<?>>>() {
-                // <Class<?>> is actually needed to compile
-                @SuppressWarnings("RedundantTypeArguments")
-                @Override
-                public ImmutableSet<Class<?>> load(Class<?> concreteClass) {
-                  return ImmutableSet.<Class<?>>copyOf(
-                      TypeToken.of(concreteClass).getTypes().rawTypes());
+    /** Unregisters all subscribers on the given listener object. */
+    void unregister(Object listener) {
+        // 获取监听器中所有的监听方法。
+        Multimap<Class<?>, Subscriber> listenerMethods = findAllSubscribers(listener);
+
+        for (Entry<Class<?>, Collection<Subscriber>> entry : listenerMethods.asMap().entrySet()) {
+            Class<?> eventType = entry.getKey();
+            Collection<Subscriber> listenerMethodsForType = entry.getValue();
+
+            CopyOnWriteArraySet<Subscriber> currentSubscribers = subscribers.get(eventType);
+            if (currentSubscribers == null || !currentSubscribers.removeAll(listenerMethodsForType)) {
+                // if removeAll returns true, all we really know is that at least one subscriber was
+                // removed... however, barring something very strange we can assume that if at least one
+                // subscriber was removed, all subscribers on listener for that event type were... after
+                // all, the definition of subscribers on a particular class is totally static
+                throw new IllegalArgumentException(
+                        "missing event subscriber for an annotated method. Is " + listener + " registered?");
+            }
+
+            // don't try to remove the set if it's empty; that can't be done safely without a lock
+            // anyway, if the set is empty it'll just be wrapping an array of length 0
+        }
+    }
+
+    @VisibleForTesting
+    Set<Subscriber> getSubscribersForTesting(Class<?> eventType) {
+        return MoreObjects.firstNonNull(subscribers.get(eventType), ImmutableSet.<Subscriber>of());
+    }
+
+    /**
+     * Gets an iterator representing an immutable snapshot of all subscribers to the given event at
+     * the time this method is called.
+     */
+    Iterator<Subscriber> getSubscribers(Object event) {
+        ImmutableSet<Class<?>> eventTypes = flattenHierarchy(event.getClass());
+        List<Iterator<Subscriber>> subscriberIterators =  Lists.newArrayListWithCapacity(eventTypes.size());
+        for (Class<?> eventType : eventTypes) {
+            CopyOnWriteArraySet<Subscriber> eventSubscribers = subscribers.get(eventType);
+            if (eventSubscribers != null) {
+                // eager no-copy snapshot
+                subscriberIterators.add(eventSubscribers.iterator());
+            }
+        }
+        return Iterators.concat(subscriberIterators.iterator());
+    }
+
+    /**
+     * A thread-safe cache that contains the mapping from each class to all methods in that class and
+     * all super-classes, that are annotated with {@code @Subscribe}. The cache is shared across all
+     * instances of this class; this greatly improves performance if multiple EventBus instances are
+     * created and objects of the same class are registered on all of them.
+     */
+    private static final LoadingCache<Class<?>, ImmutableList<Method>> subscriberMethodsCache =
+            CacheBuilder.newBuilder()
+                    .weakKeys()
+                    .build(
+                            new CacheLoader<Class<?>, ImmutableList<Method>>() {
+                                @Override
+                                public ImmutableList<Method> load(Class<?> concreteClass) throws Exception {
+                                    return getAnnotatedMethodsNotCached(concreteClass);
+                                }
+                            });
+
+    /**
+     * Returns all subscribers for the given listener grouped by the type of event they subscribe to.
+     * findAllSubscribers用于查找事件类型以及事件处理器的对应关系。
+     * 查找注解需要涉及到反射，通过反射来获取标注在方法上的注解。
+     * 因为Guava针对EventBus的注册采取的是“隐式契约”而非接口这种“显式契约”。
+     * 而类与接口是存在继承关系的，所有很有可能某个订阅者其父类（或者父类实现的某个接口）也订阅了某个事件。
+     * 因此这里的查找需要顺着继承链向上查找父类的方法是否也被注解标注。
+     */
+    private Multimap<Class<?>, Subscriber> findAllSubscribers(Object listener) {
+        Multimap<Class<?>, Subscriber> methodsInListener = HashMultimap.create();
+        Class<?> clazz = listener.getClass();
+        for (Method method : getAnnotatedMethods(clazz)) {
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            Class<?> eventType = parameterTypes[0];
+            methodsInListener.put(eventType, Subscriber.create(bus, listener, method));
+        }
+        return methodsInListener;
+    }
+
+    private static ImmutableList<Method> getAnnotatedMethods(Class<?> clazz) {
+        return subscriberMethodsCache.getUnchecked(clazz);
+    }
+
+    //这个执行结果会放入到subscriberMethodsCache本地缓存中，下次同样的Class不用再反射解析，直接从缓存中拿
+    private static ImmutableList<Method> getAnnotatedMethodsNotCached(Class<?> clazz) {
+        Set<? extends Class<?>> supertypes = TypeToken.of(clazz).getTypes().rawTypes();
+        Map<MethodIdentifier, Method> identifiers = Maps.newHashMap();
+        for (Class<?> supertype : supertypes) {
+            for (Method method : supertype.getDeclaredMethods()) {
+                //遍历订阅者的每个方法，检查方法上是否有@SubScribe注解
+                if (method.isAnnotationPresent(Subscribe.class) && !method.isSynthetic()) {
+                    // TODO(cgdecker): Should check for a generic parameter type and error out
+                    Class<?>[] parameterTypes = method.getParameterTypes();
+                    //注解方法只能有一个参数
+                    checkArgument(
+                            parameterTypes.length == 1,"Method %s has @Subscribe annotation but has %s parameters. Subscriber methods must have exactly 1 parameter.",
+                            method,parameterTypes.length);
+                    MethodIdentifier ident = new MethodIdentifier(method);
+                    if (!identifiers.containsKey(ident)) {
+                        identifiers.put(ident, method);
+                    }
                 }
-              });
-
-  /**
-   * Flattens a class's type hierarchy into a set of {@code Class} objects including all
-   * superclasses (transitively) and all interfaces implemented by these superclasses.
-   */
-  @VisibleForTesting
-  static ImmutableSet<Class<?>> flattenHierarchy(Class<?> concreteClass) {
-    try {
-      return flattenHierarchyCache.getUnchecked(concreteClass);
-    } catch (UncheckedExecutionException e) {
-      throw Throwables.propagate(e.getCause());
-    }
-  }
-
-  private static final class MethodIdentifier {
-
-    private final String name;
-    private final List<Class<?>> parameterTypes;
-
-    MethodIdentifier(Method method) {
-      this.name = method.getName();
-      this.parameterTypes = Arrays.asList(method.getParameterTypes());
+            }
+        }
+        return ImmutableList.copyOf(identifiers.values());
     }
 
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(name, parameterTypes);
+    /** Global cache of classes to their flattened hierarchy of supertypes. */
+    private static final LoadingCache<Class<?>, ImmutableSet<Class<?>>> flattenHierarchyCache =
+            CacheBuilder.newBuilder()
+                    .weakKeys()
+                    .build(
+                            new CacheLoader<Class<?>, ImmutableSet<Class<?>>>() {
+                                // <Class<?>> is actually needed to compile
+                                @SuppressWarnings("RedundantTypeArguments")
+                                @Override
+                                public ImmutableSet<Class<?>> load(Class<?> concreteClass) {
+                                    return ImmutableSet.<Class<?>>copyOf(TypeToken.of(concreteClass).getTypes().rawTypes());
+                                }
+                            });
+
+    /**
+     * Flattens a class's type hierarchy into a set of {@code Class} objects including all
+     * superclasses (transitively) and all interfaces implemented by these superclasses.
+     */
+    @VisibleForTesting
+    static ImmutableSet<Class<?>> flattenHierarchy(Class<?> concreteClass) {
+        try {
+            return flattenHierarchyCache.getUnchecked(concreteClass);
+        } catch (UncheckedExecutionException e) {
+            throw Throwables.propagate(e.getCause());
+        }
     }
 
-    @Override
-    public boolean equals(@Nullable Object o) {
-      if (o instanceof MethodIdentifier) {
-        MethodIdentifier ident = (MethodIdentifier) o;
-        return name.equals(ident.name) && parameterTypes.equals(ident.parameterTypes);
-      }
-      return false;
+    private static final class MethodIdentifier {
+
+        private final String name;
+        private final List<Class<?>> parameterTypes;
+
+        MethodIdentifier(Method method) {
+            this.name = method.getName();
+            this.parameterTypes = Arrays.asList(method.getParameterTypes());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(name, parameterTypes);
+        }
+
+        @Override
+        public boolean equals(@Nullable Object o) {
+            if (o instanceof MethodIdentifier) {
+                MethodIdentifier ident = (MethodIdentifier) o;
+                return name.equals(ident.name) && parameterTypes.equals(ident.parameterTypes);
+            }
+            return false;
+        }
     }
-  }
 }

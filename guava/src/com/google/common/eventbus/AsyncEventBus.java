@@ -4,10 +4,9 @@ import com.google.common.annotations.Beta;
 import java.util.concurrent.Executor;
 
 /**
+ *  继承自EventBus，主要区别在于分发器，使用的是Dispatcher.legacyAsync()。这个后续咱们再分析。
  * An {@link EventBus} that takes the Executor of your choice and uses it to dispatch events,
  * allowing dispatch to occur asynchronously.
- *
- * @author Cliff Biffle
  * @since 10.0
  */
 @Beta
