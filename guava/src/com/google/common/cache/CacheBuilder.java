@@ -924,8 +924,7 @@ public final class CacheBuilder<K, V> {
    * @param loader the cache loader used to obtain new values
    * @return a cache having the requested features
    */
-  public <K1 extends K, V1 extends V> LoadingCache<K1, V1> build(
-      CacheLoader<? super K1, V1> loader) {
+  public <K1 extends K, V1 extends V> LoadingCache<K1, V1> build(CacheLoader<? super K1, V1> loader) {
     checkWeightWithWeigher();
     return new LocalCache.LocalLoadingCache<>(this, loader);
   }

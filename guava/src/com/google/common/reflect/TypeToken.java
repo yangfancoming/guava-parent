@@ -1393,8 +1393,7 @@ public abstract class TypeToken<T> extends TypeCapture<T> implements Serializabl
       return aboveMe + 1;
     }
 
-    private static <K, V> ImmutableList<K> sortKeysByValue(
-        final Map<K, V> map, final Comparator<? super V> valueComparator) {
+    private static <K, V> ImmutableList<K> sortKeysByValue( final Map<K, V> map, final Comparator<? super V> valueComparator) {
       Ordering<K> keyOrdering =
           new Ordering<K>() {
             @Override

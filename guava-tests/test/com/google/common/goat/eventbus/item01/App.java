@@ -21,6 +21,6 @@ public class App {
         eventBus.post(new TestEvent(200));
         eventBus.post(new TestEvent(300));
         eventBus.post(new TestEvent(400));
-//        System.out.println("LastMessage:"+listener.getLastMessage());
+        System.out.println("LastMessage:"+listener.getLastMessage());
     }
 }

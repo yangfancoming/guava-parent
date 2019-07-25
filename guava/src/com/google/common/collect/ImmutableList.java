@@ -44,8 +44,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @GwtCompatible(serializable = true, emulated = true)
 @SuppressWarnings("serial") // we're overriding default serialization
-public abstract class ImmutableList<E> extends ImmutableCollection<E>
-    implements List<E>, RandomAccess {
+public abstract class ImmutableList<E> extends ImmutableCollection<E> implements List<E>, RandomAccess {
 
   /**
    * Returns a {@code Collector} that accumulates the input elements into a new {@code

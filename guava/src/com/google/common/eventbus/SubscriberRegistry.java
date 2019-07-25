@@ -130,8 +130,7 @@ final class SubscriberRegistry {
      * created and objects of the same class are registered on all of them.
      */
     private static final LoadingCache<Class<?>, ImmutableList<Method>> subscriberMethodsCache =
-            CacheBuilder.newBuilder()
-                    .weakKeys()
+            CacheBuilder.newBuilder().weakKeys()
                     .build(
                             new CacheLoader<Class<?>, ImmutableList<Method>>() {
                                 @Override
@@ -151,7 +150,8 @@ final class SubscriberRegistry {
     private Multimap<Class<?>, Subscriber> findAllSubscribers(Object listener) {
         Multimap<Class<?>, Subscriber> methodsInListener = HashMultimap.create();
         Class<?> clazz = listener.getClass();
-        for (Method method : getAnnotatedMethods(clazz)) {
+        ImmutableList<Method> annotatedMethods = getAnnotatedMethods(clazz);
+        for (Method method : annotatedMethods) {
             Class<?>[] parameterTypes = method.getParameterTypes();
             Class<?> eventType = parameterTypes[0];
             methodsInListener.put(eventType, Subscriber.create(bus, listener, method));

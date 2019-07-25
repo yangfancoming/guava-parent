@@ -80,13 +80,13 @@ public final class HashMultimap<K, V> extends HashMultimapGwtSerializationDepend
   }
 
   private HashMultimap(int expectedKeys, int expectedValuesPerKey) {
-    super(Platform.<K, Collection<V>>newHashMapWithExpectedSize(expectedKeys));
+    super(Platform.newHashMapWithExpectedSize(expectedKeys));
     Preconditions.checkArgument(expectedValuesPerKey >= 0);
     this.expectedValuesPerKey = expectedValuesPerKey;
   }
 
   private HashMultimap(Multimap<? extends K, ? extends V> multimap) {
-    super(Platform.<K, Collection<V>>newHashMapWithExpectedSize(multimap.keySet().size()));
+    super(Platform.newHashMapWithExpectedSize(multimap.keySet().size()));
     putAll(multimap);
   }
 
