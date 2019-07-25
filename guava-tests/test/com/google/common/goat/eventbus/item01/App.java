@@ -1,4 +1,4 @@
-package com.google.common.goat.eventbus;
+package com.google.common.goat.eventbus.item01;
 
 import com.google.common.eventbus.EventBus;
 import org.junit.Test;

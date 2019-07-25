@@ -1,4 +1,4 @@
-package com.google.common.goat.eventbus;
+package com.google.common.goat.eventbus.item01;
 
 /**
  * Created by 64274 on 2019/7/25.
