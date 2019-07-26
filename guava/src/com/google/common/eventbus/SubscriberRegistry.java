@@ -73,8 +73,7 @@ final class SubscriberRegistry {
                 CopyOnWriteArraySet<Subscriber> newSet = new CopyOnWriteArraySet<>();
                 eventSubscribers = MoreObjects.firstNonNull(subscribers.putIfAbsent(eventType, newSet), newSet);
             }
-            // Collection<Subscriber> eventMethodsInListener = entry.getValue();
-            eventSubscribers.addAll(eventMethodsInListener);
+            eventSubscribers.addAll(eventMethodsInListener);// doit 这不知道这行代码存在意义，但是注释掉改代码 又不能正常运行
         }
     }
 
