@@ -89,13 +89,7 @@ public class MultimapsCollectionTest extends TestCase {
     MultisetTestSuiteBuilder.NoRecurse.NO_ENTRY_SET, // Cannot create entries with count > 1
   };
 
-  static final Supplier<TreeSet<String>> STRING_TREESET_FACTORY =
-      new Supplier<TreeSet<String>>() {
-        @Override
-        public TreeSet<String> get() {
-          return new TreeSet<>(Ordering.natural().nullsLast());
-        }
-      };
+  static final Supplier<TreeSet<String>> STRING_TREESET_FACTORY = ()->new TreeSet<>(Ordering.natural().nullsLast());
 
   static void populateMultimapForGet(Multimap<Integer, String> multimap, String[] elements) {
     multimap.put(2, "foo");
@@ -216,21 +210,9 @@ public class MultimapsCollectionTest extends TestCase {
     }
   }
 
-  private static final Predicate<Entry<Integer, String>> FILTER_GET_PREDICATE =
-      new Predicate<Entry<Integer, String>>() {
-        @Override
-        public boolean apply(Entry<Integer, String> entry) {
-          return !"badvalue".equals(entry.getValue()) && 55556 != entry.getKey();
-        }
-      };
+  private static final Predicate<Entry<Integer, String>> FILTER_GET_PREDICATE = entry->!"badvalue".equals(entry.getValue()) && 55556 != entry.getKey();
 
-  private static final Predicate<Entry<String, Integer>> FILTER_KEYSET_PREDICATE =
-      new Predicate<Entry<String, Integer>>() {
-        @Override
-        public boolean apply(Entry<String, Integer> entry) {
-          return !"badkey".equals(entry.getKey()) && 55556 != entry.getValue();
-        }
-      };
+  private static final Predicate<Entry<String, Integer>> FILTER_KEYSET_PREDICATE = entry->!"badkey".equals(entry.getKey()) && 55556 != entry.getValue();
 
   public static Test suite() {
     TestSuite suite = new TestSuite();
@@ -245,7 +227,7 @@ public class MultimapsCollectionTest extends TestCase {
                   protected ListMultimap<String, String> create(Entry<String, String>[] entries) {
                     ListMultimap<String, String> multimap =
                         Multimaps.synchronizedListMultimap(
-                            ArrayListMultimap.<String, String>create());
+                            ArrayListMultimap.create());
                     for (Entry<String, String> entry : entries) {
                       multimap.put(entry.getKey(), entry.getValue());
                     }

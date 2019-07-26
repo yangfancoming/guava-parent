@@ -73,6 +73,7 @@ final class SubscriberRegistry {
                 CopyOnWriteArraySet<Subscriber> newSet = new CopyOnWriteArraySet<>();
                 eventSubscribers = MoreObjects.firstNonNull(subscribers.putIfAbsent(eventType, newSet), newSet);
             }
+            // Collection<Subscriber> eventMethodsInListener = entry.getValue();
             eventSubscribers.addAll(eventMethodsInListener);
         }
     }
@@ -81,19 +82,16 @@ final class SubscriberRegistry {
     void unregister(Object listener) {
         // 获取监听器中所有的监听方法。
         Multimap<Class<?>, Subscriber> listenerMethods = findAllSubscribers(listener);
-
         for (Entry<Class<?>, Collection<Subscriber>> entry : listenerMethods.asMap().entrySet()) {
             Class<?> eventType = entry.getKey();
             Collection<Subscriber> listenerMethodsForType = entry.getValue();
-
             CopyOnWriteArraySet<Subscriber> currentSubscribers = subscribers.get(eventType);
             if (currentSubscribers == null || !currentSubscribers.removeAll(listenerMethodsForType)) {
                 // if removeAll returns true, all we really know is that at least one subscriber was
                 // removed... however, barring something very strange we can assume that if at least one
                 // subscriber was removed, all subscribers on listener for that event type were... after
                 // all, the definition of subscribers on a particular class is totally static
-                throw new IllegalArgumentException(
-                        "missing event subscriber for an annotated method. Is " + listener + " registered?");
+                throw new IllegalArgumentException("missing event subscriber for an annotated method. Is " + listener + " registered?");
             }
 
             // don't try to remove the set if it's empty; that can't be done safely without a lock
@@ -103,7 +101,7 @@ final class SubscriberRegistry {
 
     @VisibleForTesting
     Set<Subscriber> getSubscribersForTesting(Class<?> eventType) {
-        return MoreObjects.firstNonNull(subscribers.get(eventType), ImmutableSet.<Subscriber>of());
+        return MoreObjects.firstNonNull(subscribers.get(eventType), ImmutableSet.of());
     }
 
     /**
@@ -148,11 +146,16 @@ final class SubscriberRegistry {
      * 因此这里的查找需要顺着继承链向上查找父类的方法是否也被注解标注。
      */
     private Multimap<Class<?>, Subscriber> findAllSubscribers(Object listener) {
+        // 创建一个哈希表
         Multimap<Class<?>, Subscriber> methodsInListener = HashMultimap.create();
+        // 获取监听者的类型
         Class<?> clazz = listener.getClass();
+        // 获取上述监听者的全部监听方法
         ImmutableList<Method> annotatedMethods = getAnnotatedMethods(clazz);
+        // 遍历上述方法，并且根据方法和类型参数创建观察者并将其插入到映射表中
         for (Method method : annotatedMethods) {
             Class<?>[] parameterTypes = method.getParameterTypes();
+            // 事件类型
             Class<?> eventType = parameterTypes[0];
             methodsInListener.put(eventType, Subscriber.create(bus, listener, method));
         }

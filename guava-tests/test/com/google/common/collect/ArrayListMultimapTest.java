@@ -20,11 +20,7 @@ import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
-/**
- * Unit tests for {@code ArrayListMultimap}.
- *
- * @author Jared Levy
- */
+
 @GwtCompatible(emulated = true)
 public class ArrayListMultimapTest extends TestCase {
 

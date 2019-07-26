@@ -30,8 +30,6 @@ import junit.framework.TestCase;
 
 /**
  * Tests for {@link MultimapBuilder}.
- *
- * @author Louis Wasserman
  */
 @GwtCompatible(emulated = true)
 public class MultimapBuilderTest extends TestCase {
@@ -45,14 +43,10 @@ public class MultimapBuilderTest extends TestCase {
   }
 
   public void testGenerics_gwtCompatible() {
-    ListMultimap<String, Integer> a =
-        MultimapBuilder.hashKeys().arrayListValues().<String, Integer>build();
-    SortedSetMultimap<String, Integer> b =
-        MultimapBuilder.linkedHashKeys().treeSetValues().<String, Integer>build();
-    SetMultimap<String, Integer> c =
-        MultimapBuilder.treeKeys(String.CASE_INSENSITIVE_ORDER)
-            .hashSetValues()
-            .<String, Integer>build();
+    ListMultimap<String, Integer> a = MultimapBuilder.hashKeys().arrayListValues().build();
+    SortedSetMultimap<String, Integer> b = MultimapBuilder.linkedHashKeys().treeSetValues().build();
+    SetMultimap<String, Integer> c = MultimapBuilder.treeKeys(String.CASE_INSENSITIVE_ORDER).hashSetValues().build();
+
   }
 
   @GwtIncompatible // doesn't build without explicit type parameters on build() methods
@@ -64,7 +58,7 @@ public class MultimapBuilderTest extends TestCase {
 
   public void testTreeKeys_gwtCompatible() {
     ListMultimap<String, Integer> multimap =
-        MultimapBuilder.treeKeys().arrayListValues().<String, Integer>build();
+        MultimapBuilder.treeKeys().arrayListValues().build();
     assertTrue(multimap.keySet() instanceof SortedSet);
     assertTrue(multimap.asMap() instanceof SortedMap);
   }
